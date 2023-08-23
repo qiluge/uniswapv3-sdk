@@ -57,7 +57,7 @@ func ConstructV3Pool(client *ethclient.Client, token0, token1 *coreEntities.Toke
 	}
 
 	feeAmount := constants.FeeAmount(poolFee)
-	ticks := []entities.Tick{
+	ticks := []*entities.Tick{
 		{
 			Index: entities.NearestUsableTick(sdkutils.MinTick,
 				constants.TickSpacings[feeAmount]),

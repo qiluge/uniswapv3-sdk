@@ -14,7 +14,7 @@ type TickDataProvider interface {
 	 * Return information corresponding to a specific tick
 	 * @param tick the tick to load
 	 */
-	GetTick(tick int) Tick
+	GetTick(tick int) *Tick
 
 	/**
 	 * Return the next tick that is initialized within a single word

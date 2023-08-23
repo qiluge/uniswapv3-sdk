@@ -36,7 +36,7 @@ type Pool struct {
 	SqrtRatioX96     *big.Int
 	Liquidity        *big.Int
 	TickCurrent      int
-	TickDataProvider TickDataProvider
+	tickDataProvider TickDataProvider
 
 	token0Price *entities.Price
 	token1Price *entities.Price
@@ -91,8 +91,16 @@ func NewPool(tokenA, tokenB *entities.Token, fee constants.FeeAmount, sqrtRatioX
 		SqrtRatioX96:     sqrtRatioX96,
 		Liquidity:        liquidity,
 		TickCurrent:      tickCurrent,
-		TickDataProvider: ticks, // TODO: new tick data provider
+		tickDataProvider: ticks, // TODO: new tick data provider
 	}, nil
+}
+
+func (p *Pool) SetTickData(data TickDataProvider) {
+	p.tickDataProvider = data
+}
+
+func (p *Pool) GetTickData() TickDataProvider {
+	return p.tickDataProvider
 }
 
 /**
@@ -153,7 +161,7 @@ func (p *Pool) GetOutputAmount(inputAmount *entities.CurrencyAmount, sqrtPriceLi
 		return nil, nil, ErrTokenNotInvolved
 	}
 	zeroForOne := inputAmount.Currency.Equal(p.Token0)
-	outputAmount, sqrtRatioX96, liquidity, tickCurrent, err := p.swap(zeroForOne, inputAmount.Quotient(), sqrtPriceLimitX96)
+	outputAmount, sqrtRatioX96, liquidity, tickCurrent, err := p.Swap(zeroForOne, inputAmount.Quotient(), sqrtPriceLimitX96)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -163,7 +171,7 @@ func (p *Pool) GetOutputAmount(inputAmount *entities.CurrencyAmount, sqrtPriceLi
 	} else {
 		outputToken = p.Token0
 	}
-	pool, err := NewPool(p.Token0, p.Token1, p.Fee, sqrtRatioX96, liquidity, tickCurrent, p.TickDataProvider)
+	pool, err := NewPool(p.Token0, p.Token1, p.Fee, sqrtRatioX96, liquidity, tickCurrent, p.tickDataProvider)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -181,7 +189,7 @@ func (p *Pool) GetInputAmount(outputAmount *entities.CurrencyAmount, sqrtPriceLi
 		return nil, nil, ErrTokenNotInvolved
 	}
 	zeroForOne := outputAmount.Currency.Equal(p.Token1)
-	inputAmount, sqrtRatioX96, liquidity, tickCurrent, err := p.swap(zeroForOne, new(big.Int).Mul(outputAmount.Quotient(), constants.NegativeOne), sqrtPriceLimitX96)
+	inputAmount, sqrtRatioX96, liquidity, tickCurrent, err := p.Swap(zeroForOne, new(big.Int).Mul(outputAmount.Quotient(), constants.NegativeOne), sqrtPriceLimitX96)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -191,7 +199,7 @@ func (p *Pool) GetInputAmount(outputAmount *entities.CurrencyAmount, sqrtPriceLi
 	} else {
 		inputToken = p.Token1
 	}
-	pool, err := NewPool(p.Token0, p.Token1, p.Fee, sqrtRatioX96, liquidity, tickCurrent, p.TickDataProvider)
+	pool, err := NewPool(p.Token0, p.Token1, p.Fee, sqrtRatioX96, liquidity, tickCurrent, p.tickDataProvider)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -208,7 +216,7 @@ func (p *Pool) GetInputAmount(outputAmount *entities.CurrencyAmount, sqrtPriceLi
  * @returns liquidity
  * @returns tickCurrent
  */
-func (p *Pool) swap(zeroForOne bool, amountSpecified, sqrtPriceLimitX96 *big.Int) (amountCalCulated *big.Int, sqrtRatioX96 *big.Int, liquidity *big.Int, tickCurrent int, err error) {
+func (p *Pool) Swap(zeroForOne bool, amountSpecified, sqrtPriceLimitX96 *big.Int) (amountCalculated *big.Int, sqrtRatioX96 *big.Int, liquidity *big.Int, tickCurrent int, err error) {
 	if sqrtPriceLimitX96 == nil {
 		if zeroForOne {
 			sqrtPriceLimitX96 = new(big.Int).Add(utils.MinSqrtRatio, constants.One)
@@ -259,7 +267,7 @@ func (p *Pool) swap(zeroForOne bool, amountSpecified, sqrtPriceLimitX96 *big.Int
 		// because each iteration of the while loop rounds, we can't optimize this code (relative to the smart contract)
 		// by simply traversing to the next available tick, we instead need to exactly replicate
 		// tickBitmap.nextInitializedTickWithinOneWord
-		step.tickNext, step.initialized = p.TickDataProvider.NextInitializedTickWithinOneWord(state.tick, zeroForOne, p.tickSpacing())
+		step.tickNext, step.initialized = p.tickDataProvider.NextInitializedTickWithinOneWord(state.tick, zeroForOne, p.tickSpacing())
 
 		if step.tickNext < utils.MinTick {
 			step.tickNext = utils.MinTick
@@ -303,7 +311,7 @@ func (p *Pool) swap(zeroForOne bool, amountSpecified, sqrtPriceLimitX96 *big.Int
 		if state.sqrtPriceX96.Cmp(step.sqrtPriceNextX96) == 0 {
 			// if the tick is initialized, run the tick transition
 			if step.initialized {
-				liquidityNet := p.TickDataProvider.GetTick(step.tickNext).LiquidityNet
+				liquidityNet := p.tickDataProvider.GetTick(step.tickNext).LiquidityNet
 				// if we're moving leftward, we interpret liquidityNet as the opposite sign
 				// safe because liquidityNet cannot be type(int128).min
 				if zeroForOne {

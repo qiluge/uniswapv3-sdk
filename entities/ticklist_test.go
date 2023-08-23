@@ -9,17 +9,17 @@ import (
 )
 
 var (
-	lowTick = Tick{
+	lowTick = &Tick{
 		Index:          utils.MinTick + 1,
 		LiquidityNet:   big.NewInt(10),
 		LiquidityGross: big.NewInt(10),
 	}
-	midTick = Tick{
+	midTick = &Tick{
 		Index:          0,
 		LiquidityNet:   big.NewInt(-5),
 		LiquidityGross: big.NewInt(5),
 	}
-	highTick = Tick{
+	highTick = &Tick{
 		Index:          utils.MaxTick - 1,
 		LiquidityNet:   big.NewInt(-5),
 		LiquidityGross: big.NewInt(5),
@@ -27,35 +27,35 @@ var (
 )
 
 func TestValidateList(t *testing.T) {
-	assert.ErrorIs(t, ValidateList([]Tick{lowTick}, 1), ErrZeroNet, "panics for incomplete lists")
-	assert.ErrorIs(t, ValidateList([]Tick{highTick, lowTick, midTick}, 1), ErrSorted, "panics for unsorted lists")
-	assert.ErrorIs(t, ValidateList([]Tick{highTick, midTick, lowTick}, 1337), ErrInvalidTickSpacing, "errors if ticks are not on multiples of tick spacing")
+	assert.ErrorIs(t, ValidateList([]*Tick{lowTick}, 1), ErrZeroNet, "panics for incomplete lists")
+	assert.ErrorIs(t, ValidateList([]*Tick{highTick, lowTick, midTick}, 1), ErrSorted, "panics for unsorted lists")
+	assert.ErrorIs(t, ValidateList([]*Tick{highTick, midTick, lowTick}, 1337), ErrInvalidTickSpacing, "errors if ticks are not on multiples of tick spacing")
 }
 
 func TestIsBelowSmallest(t *testing.T) {
-	result := []Tick{lowTick, midTick, highTick}
+	result := []*Tick{lowTick, midTick, highTick}
 	assert.True(t, IsBelowSmallest(result, utils.MinTick))
 	assert.False(t, IsBelowSmallest(result, utils.MinTick+1))
 }
 
 func TestIsAtOrAboveSmallest(t *testing.T) {
-	result := []Tick{lowTick, midTick, highTick}
+	result := []*Tick{lowTick, midTick, highTick}
 	assert.False(t, IsAtOrAboveLargest(result, utils.MaxTick-2))
 	assert.True(t, IsAtOrAboveLargest(result, utils.MaxTick-1))
 }
 
 func TestNextInitializedTick(t *testing.T) {
-	ticks := []Tick{lowTick, midTick, highTick}
+	ticks := []*Tick{lowTick, midTick, highTick}
 
 	type args struct {
-		ticks []Tick
+		ticks []*Tick
 		tick  int
 		lte   bool
 	}
 	tests := []struct {
 		name string
 		args args
-		want Tick
+		want *Tick
 	}{
 		{name: "low - lte = true 0", args: args{ticks: ticks, tick: utils.MinTick + 1, lte: true}, want: lowTick},
 		{name: "low - lte = true 1", args: args{ticks: ticks, tick: utils.MinTick + 2, lte: true}, want: lowTick},
@@ -82,11 +82,11 @@ func TestNextInitializedTick(t *testing.T) {
 }
 
 func TestNextInitializedTickWithinOneWord(t *testing.T) {
-	ticks := []Tick{lowTick, midTick, highTick}
+	ticks := []*Tick{lowTick, midTick, highTick}
 
 	// words around 0, lte = true
 	type args struct {
-		ticks       []Tick
+		ticks       []*Tick
 		tick        int
 		lte         bool
 		tickSpacing int

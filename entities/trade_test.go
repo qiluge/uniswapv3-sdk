@@ -106,6 +106,50 @@ func v2StylePool(token0, token1 *entities.Token, reserve0, reserve1 *entities.Cu
 	return pool
 }
 
+func TestCompareV2AndV3(t *testing.T) {
+	r0 := big.NewInt(100000000).Mul(big.NewInt(100000000000), big.NewInt(100000000000))
+	r1 := new(big.Int).Set(r0)
+	r1.Mul(r1, big.NewInt(769))
+	r1.Div(r1, big.NewInt(213))
+	// 361032863849765258215960000000000000000000000
+	// 361032863849765258215954166684271055736135809
+	pool := v2StylePool(token0, token1, entities.FromRawAmount(token0, r0), entities.FromRawAmount(token0, r1),
+		constants.FeeMedium)
+	t.Log(new(big.Int).Mul(r0, r1), new(big.Int).Mul(pool.Liquidity, pool.Liquidity))
+	amountIn := big.NewInt(10000000000000000)
+	// r0 -> r1
+	amountCalCulated, sqrtRatioX96, liquidity, _, err := pool.Swap(false, amountIn, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 9960069810399032164
+	//   -9969990059919910
+	// r0*(1-f)*amountIn / (r1+(1-f)*amountIn)
+	amountOut := new(big.Int).Mul(r0, amountIn)
+	amountOut.Mul(amountOut, big.NewInt(997))
+	amountOut.Div(amountOut, new(big.Int).Add(r1, new(big.Int).Mul(amountIn, big.NewInt(997))))
+	amountOut.Div(amountOut, big.NewInt(1000))
+	r1New := new(big.Int).Add(r1, amountIn)
+	r0New := new(big.Int).Sub(r0, amountOut)
+	priceDecimals := big.NewInt(10000)
+	price := new(big.Int).Mul(r1New, priceDecimals)
+	price = price.Div(price, r0New)
+	priceFromSqrt := new(big.Int).Mul(sqrtRatioX96, sqrtRatioX96)
+	priceFromSqrt.Mul(priceFromSqrt, priceDecimals)
+	priceFromSqrt.Div(priceFromSqrt, new(big.Int).Exp(big.NewInt(2), big.NewInt(192), nil))
+	t.Log(amountOut, amountCalCulated)
+	t.Log(price, priceFromSqrt)
+	t.Log(liquidity, new(big.Int).Sqrt(new(big.Int).Mul(r0, r1)))
+	l2 := new(big.Int).Mul(liquidity, liquidity)
+	x := new(big.Int).Mul(l2, priceDecimals)
+	x.Div(x, price)
+	x.Sqrt(x)
+	y := new(big.Int).Mul(l2, price)
+	y.Div(y, priceDecimals)
+	y.Sqrt(y)
+	t.Log(r0New, x, r1New, y)
+}
+
 func TestFromRoute(t *testing.T) {
 	// can be constructed with ETHER as input'
 	r, _ := NewRoute([]*Pool{pool_weth_0}, Ether, token0)
