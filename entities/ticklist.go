@@ -21,7 +21,7 @@ func ValidateList(ticks []*Tick, tickSpacing int) error {
 	// ensure ticks are spaced appropriately
 	for _, t := range ticks {
 		if t.Index%tickSpacing != 0 {
-			return ErrInvalidTickSpacing
+			//return ErrInvalidTickSpacing
 		}
 	}
 
